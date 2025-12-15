@@ -1,4 +1,8 @@
 jrun() {
+  # Usage: jrun <filename.java> [args...]
+  # This function compiles and runs a Java program.
+  dep_check "java" || return 1
+  dep_check "javac" || return 1
   if [ -z "$1" ]; then
     echo "Usage: jrun file.java [args...]"
     return 1
@@ -36,6 +40,9 @@ jrun() {
 
 jnew() {
     # Usage: jnew <classname>
+    # This function creates a new Java class file with a standard main method boilerplate.
+    dep_check "cat" || return 1
+    dep_check "subl" || return 1
     if [ -z "$1" ]; then
         echo "Usage: jnew <classname>"
         return 1

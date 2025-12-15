@@ -1,6 +1,9 @@
 function new-repo() {
-    # Create a new GitHub repository and initialize it locally; 
-    # This assumes the gh cli is installed, configured, and the user is logged in.
+    # Usage: new-repo <repository-name>
+    # This function creates a new GitHub public repository and initializes it locally;
+    dep_check "git" || return 1
+    dep_check "gh" || return 1
+    dep_check "git" || return 1
     if [ -z "$1" ]; then
         echo "Usage: new-repo <repository-name>"
         return 1
@@ -29,7 +32,10 @@ function new-repo() {
 }
 
 gitignore() {
-    # Add a file/directory/pattern to .gitignore
+    # Usage: gitignore <pattern>
+    # This function adds a file/directory/pattern to the .gitignore file.
+    dep_check "git" || return 1
+    dep_check "rg" || return 1
     # 1. Check if the pattern argument is empty
     if [ -z "$1" ]; then
         echo "Usage: gitignore <pattern>"
@@ -53,7 +59,7 @@ gitignore() {
     fi
     
     # 4. Check for duplicates (grep -F (fixed string) -x (exact match) -q (quiet))
-    if grep -Fxq "$pattern" "$GIT_IGNORE_FILE"; then
+    if rg -Fxq "$pattern" "$GIT_IGNORE_FILE"; then
         echo "Pattern already exists in $GIT_IGNORE_FILE"
         return 0
     fi
@@ -66,11 +72,13 @@ gitignore() {
     # 6. Append the pattern to the .gitignore file and confirm
     echo "$pattern" >> "$GIT_IGNORE_FILE"
     echo "Added '$pattern' to $GIT_IGNORE_FILE"
-
+    git add "$GIT_IGNORE_FILE" && git commit -m "Add $pattern to .gitignore" && git push
 }
 
 gacp() {
     # Usage: gacp <commit-message>
+    # This function adds all changes to the staging area, commits them with the provided message, and pushes them to the current branch.
+    dep_check "git" || return 1
     if [ -z "$1" ]; then
         echo "Usage: gacp <commit-message>"
         return 1

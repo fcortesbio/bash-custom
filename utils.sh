@@ -1,5 +1,50 @@
+bl() {
+    # Usage: bl [--functions | --aliases] [--verbose]
+    # Lists custom functions/aliases using an external awk parser.
+
+    # --- CONFIGURATION ---
+    local CUSTOM_DIR="$HOME/bash-custom"
+    local PARSER_PATH="$CUSTOM_DIR/parser.awk"
+    # ---------------------
+
+    # Safety Checks
+    if [ ! -d "$CUSTOM_DIR" ]; then
+        echo "Error: Directory $CUSTOM_DIR not found."
+        return 1
+    fi
+    if [ ! -f "$PARSER_PATH" ]; then
+        echo "Error: Parser script not found at $PARSER_PATH"
+        return 1
+    fi
+
+    local show_funcs="true"
+    local show_aliases="true"
+    local verbose="false"
+
+    # Argument Parsing
+    for arg in "$@"; do
+        case $arg in
+            --functions) show_aliases="false" ;;
+            --aliases)   show_funcs="false" ;;
+            --verbose)   verbose="true" ;;
+            *) echo "Usage: bl [--functions] [--aliases] [--verbose]"; return 1 ;;
+        esac
+    done
+
+    # The Magic Command
+    # 1. find: gets all .sh files
+    # 2. xargs: passes them to awk
+    # 3. awk: runs the parser file (-f) with our variables (-v)
+    find "$CUSTOM_DIR" -maxdepth 1 -name "*.sh" -print0 | \
+    xargs -0 awk -f "$PARSER_PATH" \
+         -v show_funcs="$show_funcs" \
+         -v show_aliases="$show_aliases" \
+         -v verbose="$verbose"
+}
+
 dep_check(){
-    # usage dep-check <command>
+    # Usage: dep-check <command>
+    # This function checks if a command is installed.
     local COMMAND="$1"
     if ! command -v "$COMMAND" &> /dev/null; then
         echo "Error: $COMMAND is not installed"
@@ -10,15 +55,16 @@ dep_check(){
 
 pdf_dc(){
     # Usage: pdf_dc <input.pdf> [password]
+    # This function decrypts a PDF file using qpdf.
+
+    dep_check "qpdf" || return 1
+
     # 1. Input file is mandatory
     # 2. Password is optional (defaults to 1144095880)
-
     local DEFAULT_PASSWORD="1144095880"
     local INPUT_FILE="$1"
     # Use Parameter Expansion: If $2 is unset or null, use DEFAULT_PASSWORD, otherwise use $2
     local PASSWORD="${2:-$DEFAULT_PASSWORD}"
-
-    dep_check "qpdf" || return 1
 
     # --- Input File Check ---
     if [ ! -f "$INPUT_FILE" ]; then
@@ -65,9 +111,8 @@ pdf_dc(){
 }
 
 pj(){
-    # This function lets you jump to any project in your development directory.
     # Usage: pj <project-name>
-    # It uses fzf to select the project from the list of projects in the development directory.
+    # This function lets you jump to any project in your development directory.
 
     # --- Dependency Check ---
     dep_check "fzf" || return 1
