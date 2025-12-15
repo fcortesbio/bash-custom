@@ -24,18 +24,35 @@ gitignore() {
         return 1
     fi
 
-    # 2. Set the pattern variable to the first argument 
     local pattern="$1"
-
-    # 3. Get the root directory of the git repository
+    # 2. Check if we are in a git repository.
     local GIT_ROOT=$(git rev-parse --show-toplevel 2> /dev/null)
+    if [ -z "$GIT_ROOT" ]; then
+        echo "Error: Not a Git repository."
+        return 1
+    fi
 
-    # 4. Define the full path to the .gitignore file in the root
     local GIT_IGNORE_FILE="$GIT_ROOT/.gitignore"
 
-    # 5. Add the pattern to the root .gitignore file
-    echo "$pattern" >> "$GIT_IGNORE_FILE"
+    # 3. Create file if it doesn't exist
+    if [ ! -f "$GIT_IGNORE_FILE" ]; then
+        touch "$GIT_IGNORE_FILE"
+        echo "Created $GIT_IGNORE_FILE"
+    fi
+    
+    # 4. Check for duplicates (grep -F (fixed string) -x (exact match) -q (quiet))
+    if grep -Fxq "$pattern" "$GIT_IGNORE_FILE"; then
+        echo "Pattern already exists in $GIT_IGNORE_FILE"
+        return 0
+    fi
 
-    # Optional: Add a success message
+    # 5. Ensure a trailing newline exists before appending
+    if [ -s "$GIT_IGNORE_FILE"] && [ "$(tail -c1 "$GIT_IGNORE_FILE" | wc -l)" -eq 0 ]; then
+        echo "" >> "$GIT_IGNORE_FILE"
+    fi
+
+    # 6. Append the pattern to the .gitignore file and confirm
+    echo "$pattern" >> "$GIT_IGNORE_FILE"
     echo "Added '$pattern' to $GIT_IGNORE_FILE"
+
 }
