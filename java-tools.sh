@@ -56,5 +56,5 @@ public class $classname {
 }
 EOF
     echo "Created $filename"
-    # subl $filename"
+    subl "$filename"
 }
