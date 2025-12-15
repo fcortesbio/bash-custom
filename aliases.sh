@@ -1,5 +1,5 @@
 # Networking aliases
-alias hotspot='sudo nmcli device wifi connect "SMA56" password "3118917668'
+alias hotspot='sudo nmcli device wifi connect "SMA56" password "3118917668"'
 alias vicwifi='sudo nmcli device wifi connect "VICTORIA" password "31138259"'
 
 # Hyprland Configs
