@@ -29,5 +29,5 @@ jrun() {
   fi
 
   # Cleanup
-  rm -f ./*.class
+  rm -f "${classname}.class"
 }
