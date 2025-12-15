@@ -32,18 +32,18 @@ function new-repo() {
 }
 
 gitignore() {
-    # Usage: gitignore <pattern>
-    # This function adds a file/directory/pattern to the .gitignore file.
+    # Usage: gitignore <pattern> [pattern...]
+    # Adds one or more patterns to .gitignore, commits, and pushes.
+    
     dep_check "git" || return 1
     dep_check "rg" || return 1
-    # 1. Check if the pattern argument is empty
-    if [ -z "$1" ]; then
-        echo "Usage: gitignore <pattern>"
+
+    if [ $# -eq 0 ]; then
+        echo "Usage: gitignore <pattern> [pattern...]"
         return 1
     fi
 
-    local pattern="$1"
-    # 2. Check if we are in a git repository.
+    # 1. Locate Git Root
     local GIT_ROOT=$(git rev-parse --show-toplevel 2> /dev/null)
     if [ -z "$GIT_ROOT" ]; then
         echo "Error: Not a Git repository."
@@ -52,27 +52,47 @@ gitignore() {
 
     local GIT_IGNORE_FILE="$GIT_ROOT/.gitignore"
 
-    # 3. Create file if it doesn't exist
+    # 2. Create file if missing
     if [ ! -f "$GIT_IGNORE_FILE" ]; then
         touch "$GIT_IGNORE_FILE"
         echo "Created $GIT_IGNORE_FILE"
     fi
-    
-    # 4. Check for duplicates (grep -F (fixed string) -x (exact match) -q (quiet))
-    if rg -Fxq "$pattern" "$GIT_IGNORE_FILE"; then
-        echo "Pattern already exists in $GIT_IGNORE_FILE"
-        return 0
-    fi
 
-    # 5. Ensure a trailing newline exists before appending
+    # 3. Ensure trailing newline exists (do this once before loop)
     if [ -s "$GIT_IGNORE_FILE" ] && [ "$(tail -c1 "$GIT_IGNORE_FILE" | wc -l)" -eq 0 ]; then
         echo "" >> "$GIT_IGNORE_FILE"
     fi
 
-    # 6. Append the pattern to the .gitignore file and confirm
-    echo "$pattern" >> "$GIT_IGNORE_FILE"
-    echo "Added '$pattern' to $GIT_IGNORE_FILE"
-    git add "$GIT_IGNORE_FILE" && git commit -m "Add $pattern to .gitignore" && git push
+    local added_count=0
+    local commit_msg_list=""
+
+    # 4. Loop through ALL arguments
+    for pattern in "$@"; do
+        # Check for duplicates (Fixed string, Exact line, Quiet)
+        if rg -Fxq "$pattern" "$GIT_IGNORE_FILE"; then
+            echo "Skipping '$pattern' (already in .gitignore)"
+        else
+            echo "$pattern" >> "$GIT_IGNORE_FILE"
+            echo "Added '$pattern'"
+            
+            # Track changes for the commit message
+            ((added_count++))
+            commit_msg_list+="$pattern, "
+        fi
+    done
+
+    # 5. Commit and Push ONLY if changes were made
+    if [ $added_count -gt 0 ]; then
+        # Remove trailing comma and space
+        commit_msg_list="${commit_msg_list%, }"
+        
+        echo "Committing and pushing changes..."
+        git add "$GIT_IGNORE_FILE"
+        git commit -m "Add to .gitignore: $commit_msg_list"
+        git push
+    else
+        echo "No new patterns were added."
+    fi
 }
 
 gacp() {
