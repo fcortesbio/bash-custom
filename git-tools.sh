@@ -59,7 +59,7 @@ gitignore() {
     fi
 
     # 5. Ensure a trailing newline exists before appending
-    if [ -s "$GIT_IGNORE_FILE"] && [ "$(tail -c1 "$GIT_IGNORE_FILE" | wc -l)" -eq 0 ]; then
+    if [ -s "$GIT_IGNORE_FILE" ] && [ "$(tail -c1 "$GIT_IGNORE_FILE" | wc -l)" -eq 0 ]; then
         echo "" >> "$GIT_IGNORE_FILE"
     fi
 
