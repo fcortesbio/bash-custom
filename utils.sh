@@ -1,4 +1,13 @@
 pdf_dc(){
+  # Usage: pdf_dc [password] <input.pdf>
+  # If password is ommitted, it defaults to: 1144095880
+  # If password is provided, it will be used to decrypt the input file
+  # If the output file already exists, it will be overwritten
+  # If the input file is not found, it will return an error
+  # If the output file is not created, it will return an error
+  # If the decryption fails, it will return an error
+  # If the decryption is successful, it will return a success message
+  # If the decryption is successful, it will return a success message
   local DEFAULT_PASSWORD="1144095880"
   local PASSWORD
   local INPUT_FILE
