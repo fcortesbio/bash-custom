@@ -19,7 +19,7 @@ function new-repo() {
     touch .gitignore LICENSE
 
     # 3. Stage and commit
-    git add -A && git commit -m "Initial commit" && git push -u origin main
+    git add -A && git commit -m "Initial commit"
 
     # 4. Use GH CLI to create remote and push in one step
     # --source=. drives gh to use current dir
