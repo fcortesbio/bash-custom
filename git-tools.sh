@@ -68,3 +68,19 @@ gitignore() {
     echo "Added '$pattern' to $GIT_IGNORE_FILE"
 
 }
+
+gacp() {
+    # Usage: gacp <commit-message>
+    if [ -z "$1" ]; then
+        echo "Usage: gacp <commit-message>"
+        return 1
+    fi
+
+    local commit_message="$1"
+    git add -A 
+    git commit -m "$commit_message"
+    # get current branch name dynamically
+    local branch_name=$(git branch --show-current)
+    git push origin "$branch_name"   
+    echo "Pushed to origin/$branch_name"
+}
