@@ -12,7 +12,9 @@ jrun() {
     return 1
   fi
 
-  local classname="${file%.java}"
+  # Extract the bare class name (strip directory path and .java extension)
+  local classname
+  classname="$(basename "${file%.java}")"
   echo "Classname: $classname"
 
   # Compile
@@ -47,8 +49,8 @@ jnew() {
         return 1
     fi
 
-    # Create the file with standard main method boilerplate
-    cat <<EOF > "$filename"
+    # Create the file with standard main method boilerplate (no variable expansion)
+    cat <<'EOF' > "$filename"
 public class $classname {
     public static void main(String[] args) {
         System.out.println("Hello, World!");
