@@ -2,7 +2,6 @@
 
 # Quick save for your learning vault
 alias anyd="anydesk"
-alias cat="bat"
 alias save-notes='cd ~/Desktop/obsidian-notebook && git add -A && git commit -m "Update notes: $(date)" && git push'
 alias hotspot='sudo nmcli device wifi connect "SMA56" password "3118917668"'
 alias vicwifi='sudo nmcli device wifi connect "VICTORIA" password "31138259"'
