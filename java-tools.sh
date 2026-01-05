@@ -57,7 +57,7 @@ jnew() {
     fi
 
     # Create the file with standard main method boilerplate (no variable expansion)
-    cat <<'EOF' > "$filename"
+    cat <<EOF > "$filename"
 public class $classname {
     public static void main(String[] args) {
         System.out.println("Hello, World!");
