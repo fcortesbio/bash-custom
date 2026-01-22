@@ -1,24 +1,31 @@
+#!/bin/bash
+
+# --- CORE UTILITIES ---
+
+dep_check() {
+    # Usage: dep_check <command>
+    local cmd="$1"
+    if ! command -v "$cmd" &> /dev/null; then
+        echo "Error: $cmd is not installed" >&2
+        return 1
+    fi
+}
+
+# --- CLIPBOARD & DOCUMENTATION ---
+
 wlc() {
     # Usage: wlc [--headers] <command> [args...]
-    # Copies command output (stdout and stderr) to Wayland clipboard.
+    # Captures stdout and stderr to the Wayland clipboard while printing to terminal.
     dep_check "wl-copy" || return 1
+    
     local header_mode=false
     local cmd_str
 
-    # Parse flags
     while [[ "$#" -gt 0 ]]; do
         case "$1" in
-            -h|--headers)
-                header_mode=true
-                shift
-                ;;
-            --) 
-                shift
-                break
-                ;;
-            *) 
-                break
-                ;;
+            -h|--headers) header_mode=true; shift ;;
+            --) shift; break ;;
+            *) break ;;
         esac
     done
 
@@ -31,31 +38,24 @@ wlc() {
 
     {
         if [[ "$header_mode" == true ]]; then
-            printf "# %s\n" "$cmd_str"
-            printf "# type: combined (stdout/stderr)\n"
+            printf "# Command: %s\n" "$cmd_str"
+            printf "# Date: %s\n" "$(date '+%Y-%m-%d %H:%M:%S')"
+            printf "# Type: combined (stdout/stderr)\n\n"
         fi
-
-        # Execute command with stderr redirected to stdout to capture everything
+        # Execute and merge streams
         "$@" 2>&1
     } | tee >(wl-copy)
 }
 
+# --- SYSTEM EXPLORATION ---
+
 bl() {
     # Usage: bl [--functions | --aliases] [--verbose]
-    # Lists custom functions/aliases using an external awk parser.
-
-    # --- CONFIGURATION ---
+    # Lists custom functions/aliases using an inlined AWK parser.
     local CUSTOM_DIR="$HOME/bash-custom"
-    local PARSER_PATH="$CUSTOM_DIR/parser.awk"
-    # ---------------------
-
-    # Safety Checks
-    if [ ! -d "$CUSTOM_DIR" ]; then
-        echo "Error: Directory $CUSTOM_DIR not found."
-        return 1
-    fi
-    if [ ! -f "$PARSER_PATH" ]; then
-        echo "Error: Parser script not found at $PARSER_PATH"
+    
+    if [[ ! -d "$CUSTOM_DIR" ]]; then
+        echo "Error: Directory $CUSTOM_DIR not found." >&2
         return 1
     fi
 
@@ -63,190 +63,95 @@ bl() {
     local show_aliases="true"
     local verbose="false"
 
-    # Argument Parsing
     for arg in "$@"; do
         case $arg in
             --functions) show_aliases="false" ;;
             --aliases)   show_funcs="false" ;;
             --verbose)   verbose="true" ;;
-            *) echo "Usage: bl [--functions] [--aliases] [--verbose]"; return 1 ;;
+            *) echo "Usage: bl [--functions] [--aliases] [--verbose]" >&2; return 1 ;;
         esac
     done
 
-    # The Magic Command
-    # 1. find: gets all .sh files
-    # 2. xargs: passes them to awk
-    # 3. awk: runs the parser file (-f) with our variables (-v)
+    # Inlined AWK logic for maximum portability
+    local awk_script='
+    FNR == 1 {
+        n = split(FILENAME, parts, "/")
+        printf "\n\033[1;33m>>> %s\033[0m\n", parts[n]
+    }
+    /^alias / {
+        if (show_aliases == "true") printf "  \033[36m[ALIAS]\033[0m    %s\n", $0
+    }
+    /^(function +)?[a-zA-Z0-9_-]+(\(\))? *\{/ {
+        if (show_funcs == "true") {
+            line = $0
+            sub(/^function /, "", line); sub(/\(\)/, "", line)
+            sub(/\{/, "", line); sub(/ +$/, "", line)
+            printf "  \033[32m[FUNC]\033[0m      %s\n", line
+            if (verbose == "true") {
+                while ((getline doc_line) > 0) {
+                    if (doc_line ~ /^[ \t]*#/) {
+                        sub(/^[ \t]*# ?/, "", doc_line)
+                        printf "              \033[90m%s\033[0m\n", doc_line
+                    } else break
+                }
+            }
+        }
+    }'
+
     find "$CUSTOM_DIR" -maxdepth 1 -name "*.sh" -print0 | \
-    xargs -0 awk -f "$PARSER_PATH" \
-         -v show_funcs="$show_funcs" \
-         -v show_aliases="$show_aliases" \
-         -v verbose="$verbose"
+    xargs -0 awk -v show_funcs="$show_funcs" \
+                 -v show_aliases="$show_aliases" \
+                 -v verbose="$verbose" \
+                 "$awk_script"
 }
 
-dep_check(){
-    # Usage: dep-check <command>
-    # This function checks if a command is installed.
-    local COMMAND="$1"
-    if ! command -v "$COMMAND" &> /dev/null; then
-        echo "Error: $COMMAND is not installed"
-        return 1
-    fi
-    return 0
-}
-
-pdf_dc(){
-    # Usage: pdf_dc <input.pdf> [password]
-    # This function decrypts a PDF file using qpdf.
-
-    dep_check "qpdf" || return 1
-
-    # 1. Input file is mandatory
-    # 2. Password is optional (defaults to 1144095880)
-    local DEFAULT_PASSWORD="1144095880"
-    local INPUT_FILE="$1"
-    # Use Parameter Expansion: If $2 is unset or null, use DEFAULT_PASSWORD, otherwise use $2
-    local PASSWORD="${2:-$DEFAULT_PASSWORD}"
-
-    # --- Input File Check ---
-    if [ ! -f "$INPUT_FILE" ]; then
-        echo "Error: Input file '$INPUT_FILE' not found"
-        return 1
-    fi
-
-    ### --- Output File Setup ---
-
-    local BASENAME="${INPUT_FILE%.pdf}"
-    local OUTPUT_FILE="${BASENAME}_decrypted.pdf"
-
-    # if [ -f "$OUTPUT_FILE" ]; then
-    #     echo "Error: Output file '$OUTPUT_FILE' already exists"
-    #     return 1
-    # fi
-
-    ### Prevent Accidental Overwrite ---
-    if [ -f "$OUTPUT_FILE" ]; then
-        echo "Error: Output file '$OUTPUT_FILE' already exists"
-        read -p "Do you want to overwrite it? (y/n): " overwrite
-        if [ "$overwrite" != "y" ]; then
-            echo "Exiting..."
-            return 1
-        fi
-    fi
-
-    ### --- Decryption Process ---
-    echo "Decrypting $INPUT_FILE to $OUTPUT_FILE..."
-    echo "Output to: $(pwd)/$OUTPUT_FILE"
-
-    qpdf --password="$PASSWORD" --decrypt "$INPUT_FILE" "$OUTPUT_FILE"
-    
-    local EXIT_CODE=$?
-
-    if [ $EXIT_CODE -eq 0 ]; then
-        echo "Decryption successful."
-    else
-        echo "Decryption failed. qpdf returned exit code $EXIT_CODE"
-        return 1
-    fi
-
-    return $EXIT_CODE
-}
-
-pj(){
-    # Usage: pj <project-name>
-    # This function lets you jump to any project in your development directory.
-
-    # --- Dependency Check ---
-    dep_check "fzf" || return 1
-    dep_check "eza" || return 1
-    #  Not checking for find or cd as they are core commands
-
-    # Change this to where you keep your project
-    local PROJECT_DIR="$HOME/projects"
-
-    # 1. List directories max depth 2
-    # 2. Pipe to fzf for fuzzy selection
-
-    local selected_dir=$(find "$PROJECT_DIR" -maxdepth 2 -type d -mindepth 1 | fzf)
-
-    if [ -n "$selected_dir" ]; then
-        cd "$selected_dir" || return 1
-        echo "Jumped to $selected_dir"
-        eza -a --icons=always
-        return 0
-    else
-        echo "No project selected"
-        return 1
-
-    fi    
-}
+# --- PRIVACY & CLEANUP ---
 
 scrub_history() {
-    # 1. SAFETY CHECKS (Do this first before touching anything)
-    if [ $# -eq 0 ]; then
-        echo "Usage: scrub_history <term1> [term2] [term3]..."
-        echo "Example: scrub_history facebook.com twitter.com"
+    # Usage: scrub_history <term1> [term2...]
+    if [[ $# -eq 0 ]]; then
+        echo "Usage: scrub_history <term1> [term2...]" >&2
         return 1
     fi
 
-    if pgrep -x "firefox" > /dev/null; then
-        echo "❌ Error: Firefox is running. Please close it first."
-        return @
-    fi
-
-    if pgrep -x "chrome" > /dev/null || pgrep -x "google-chrome-stable" > /dev/null; then
-        echo "❌ Error: Google Chrome is running. Please close it first."
+    # Check for running browsers
+    if pgrep -x "firefox" > /dev/null || pgrep -x "chrome" > /dev/null; then
+        echo "Error: Browser is running. Please close Firefox/Chrome first." >&2
         return 1
     fi
 
-    # 2. SETUP PATHS
-    local firefox_profile
-    local firefox_db
-    local chrome_db
-    
-    # Find Firefox DB
-    firefox_profile=$(find "$HOME/.mozilla/firefox" -maxdepth 1 -type d -name "*.default-release" 2>/dev/null | head -n 1)
-    firefox_db="$firefox_profile/places.sqlite"
-    
-    # Find Chrome DB
-    chrome_db="$HOME/.config/google-chrome/Default/History"
+    # Path Discovery
+    local ff_base="$HOME/.mozilla/firefox"
+    local chrome_db="$HOME/.config/google-chrome/Default/History"
 
-    # 3. BACKUPS (Perform once per run)
-    echo "🛡️  Backing up databases..."
-    [ -f "$firefox_db" ] && cp "$firefox_db" "${firefox_db}.bak"
-    [ -f "$chrome_db" ]  && cp "$chrome_db" "${chrome_db}.bak"
-
-    # 4. ITERATION (The Logic Loop)
-    # We loop through every argument provided to the function
     for term in "$@"; do
-        echo "🧹 Scrubbing term: '$term'..."
+        # SQL Sanitize: escape single quotes by doubling them
+        local safe_term="${term//\'/\'\'}"
+        echo "Processing term: '$term'..."
 
-        # --- Firefox Deletion ---
-        if [ -f "$firefox_db" ]; then
-            sqlite3 "$firefox_db" <<EOF
-            DELETE FROM moz_historyvisits 
-            WHERE place_id IN (SELECT id FROM moz_places WHERE url LIKE '%$term%');
-            DELETE FROM moz_places 
-            WHERE url LIKE '%$term%' 
-            AND id NOT IN (SELECT fk FROM moz_bookmarks WHERE fk IS NOT NULL);
+        # 1. Firefox (Handles multiple profiles)
+        if [[ -d "$ff_base" ]]; then
+            find "$ff_base" -name "places.sqlite" -type f | while read -r db; do
+                [ -f "$db" ] && cp "$db" "${db}.bak"
+                sqlite3 "$db" <<EOF
+DELETE FROM moz_historyvisits WHERE place_id IN (SELECT id FROM moz_places WHERE url LIKE '%$safe_term%');
+DELETE FROM moz_places WHERE url LIKE '%$safe_term%' AND id NOT IN (SELECT fk FROM moz_bookmarks WHERE fk IS NOT NULL);
 EOF
+            done
         fi
 
-        # --- Chrome Deletion ---
-        if [ -f "$chrome_db" ]; then
+        # 2. Chrome
+        if [[ -f "$chrome_db" ]]; then
+            [ -f "$chrome_db" ] && cp "$chrome_db" "${chrome_db}.bak"
             sqlite3 "$chrome_db" <<EOF
-            DELETE FROM visits 
-            WHERE url IN (SELECT id FROM urls WHERE url LIKE '%$term%');
-            DELETE FROM urls 
-            WHERE url LIKE '%$term%';
+DELETE FROM visits WHERE url IN (SELECT id FROM urls WHERE url LIKE '%$safe_term%');
+DELETE FROM urls WHERE url LIKE '%$safe_term%';
 EOF
         fi
     done
 
-    # 5. OPTIMIZATION (Vacuum once at the end)
-    echo "🏗️  Optimizing databases (VACUUM)..."
-    [ -f "$firefox_db" ] && sqlite3 "$firefox_db" "VACUUM;"
-    [ -f "$chrome_db" ]  && sqlite3 "$chrome_db" "VACUUM;"
-
-    echo "🎉 All Done."
+    # 3. Vacuum
+    echo "Optimizing databases..."
+    find "$ff_base" -name "places.sqlite" -exec sqlite3 {} "VACUUM;" \; 2>/dev/null
+    [[ -f "$chrome_db" ]] && sqlite3 "$chrome_db" "VACUUM;"
 }
