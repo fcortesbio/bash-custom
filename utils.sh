@@ -180,3 +180,73 @@ pj(){
 
     fi    
 }
+
+scrub_history() {
+    # 1. SAFETY CHECKS (Do this first before touching anything)
+    if [ $# -eq 0 ]; then
+        echo "Usage: scrub_history <term1> [term2] [term3]..."
+        echo "Example: scrub_history facebook.com twitter.com"
+        return 1
+    fi
+
+    if pgrep -x "firefox" > /dev/null; then
+        echo "❌ Error: Firefox is running. Please close it first."
+        return @
+    fi
+
+    if pgrep -x "chrome" > /dev/null || pgrep -x "google-chrome-stable" > /dev/null; then
+        echo "❌ Error: Google Chrome is running. Please close it first."
+        return 1
+    fi
+
+    # 2. SETUP PATHS
+    local firefox_profile
+    local firefox_db
+    local chrome_db
+    
+    # Find Firefox DB
+    firefox_profile=$(find "$HOME/.mozilla/firefox" -maxdepth 1 -type d -name "*.default-release" 2>/dev/null | head -n 1)
+    firefox_db="$firefox_profile/places.sqlite"
+    
+    # Find Chrome DB
+    chrome_db="$HOME/.config/google-chrome/Default/History"
+
+    # 3. BACKUPS (Perform once per run)
+    echo "🛡️  Backing up databases..."
+    [ -f "$firefox_db" ] && cp "$firefox_db" "${firefox_db}.bak"
+    [ -f "$chrome_db" ]  && cp "$chrome_db" "${chrome_db}.bak"
+
+    # 4. ITERATION (The Logic Loop)
+    # We loop through every argument provided to the function
+    for term in "$@"; do
+        echo "🧹 Scrubbing term: '$term'..."
+
+        # --- Firefox Deletion ---
+        if [ -f "$firefox_db" ]; then
+            sqlite3 "$firefox_db" <<EOF
+            DELETE FROM moz_historyvisits 
+            WHERE place_id IN (SELECT id FROM moz_places WHERE url LIKE '%$term%');
+            DELETE FROM moz_places 
+            WHERE url LIKE '%$term%' 
+            AND id NOT IN (SELECT fk FROM moz_bookmarks WHERE fk IS NOT NULL);
+EOF
+        fi
+
+        # --- Chrome Deletion ---
+        if [ -f "$chrome_db" ]; then
+            sqlite3 "$chrome_db" <<EOF
+            DELETE FROM visits 
+            WHERE url IN (SELECT id FROM urls WHERE url LIKE '%$term%');
+            DELETE FROM urls 
+            WHERE url LIKE '%$term%';
+EOF
+        fi
+    done
+
+    # 5. OPTIMIZATION (Vacuum once at the end)
+    echo "🏗️  Optimizing databases (VACUUM)..."
+    [ -f "$firefox_db" ] && sqlite3 "$firefox_db" "VACUUM;"
+    [ -f "$chrome_db" ]  && sqlite3 "$chrome_db" "VACUUM;"
+
+    echo "🎉 All Done."
+}
