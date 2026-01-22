@@ -155,3 +155,94 @@ EOF
     find "$ff_base" -name "places.sqlite" -exec sqlite3 {} "VACUUM;" \; 2>/dev/null
     [[ -f "$chrome_db" ]] && sqlite3 "$chrome_db" "VACUUM;"
 }
+
+pdf_dc() {
+    # Usage: pdf_dc <input.pdf> [password]
+    # This function decrypts a PDF file using qpdf.
+    dep_check "qpdf" || return 1
+    dep_check "rg" || return 1
+
+    # --- Configuration ---
+    local env_file="$HOME/bash-custom/.env"
+    local input_file="$1"
+    local password="$2"
+
+    # 1. Load default password if not provided as an argument
+    if [[ -z "$password" ]]; then
+        if [[ -f "$env_file" ]]; then
+            # Source in a subshell or carefully to avoid polluting environment
+            # Here we just want the value of defpass
+            local defpass
+            defpass=$(rg "^defpass=" "$env_file" | cut -d'=' -f2- | tr -d '"' | tr -d "'")
+            password="${defpass}"
+        fi
+    fi
+
+    # 2. Final check: if still empty, prompt or error
+    if [[ -z "$password" ]]; then
+        echo "Error: No password provided and 'defpass' not found in .env" >&2
+        return 1
+    fi
+
+    # 3. Input file validation
+    if [[ ! -f "$input_file" ]]; then
+        echo "Error: Input file '$input_file' not found" >&2
+        return 1
+    fi
+
+    local output_file="${input_file%.pdf}_decrypted.pdf"
+
+    # 4. Prevent Accidental Overwrite
+    if [[ -f "$output_file" ]]; then
+        echo "Error: Output file '$output_file' already exists."
+        read -p "Do you want to overwrite it? (y/n): " overwrite
+        if [[ "$overwrite" != "y" ]]; then
+            echo "Operation cancelled."
+            return 1
+        fi
+    fi
+
+    # 5. Decryption Process
+    echo "Decrypting $input_file..."
+    if qpdf --password="$password" --decrypt "$input_file" "$output_file"; then
+        echo "✅ Decryption successful: $output_file"
+    else
+        local exit_code=$?
+        echo "❌ Decryption failed (qpdf exit code: $exit_code)"
+        return $exit_code
+    fi
+}
+
+pj() {
+    # Usage: pj [query]
+    # Fuzzy jump to projects with a tree-view preview.
+    dep_check "fzf" || return 1
+    dep_check "eza" || return 1
+
+    local project_dir="$HOME/projects"
+    
+    # Check for fd (fdfind on some systems) or fallback to find
+    local list_cmd
+    if command -v fd &> /dev/null; then
+        list_cmd="fd . '$project_dir' --max-depth 2 --type d --mindepth 1"
+    else
+        list_cmd="find '$project_dir' -maxdepth 2 -type d -mindepth 1"
+    fi
+
+    # fzf selection with eza-powered preview
+    local selected_dir
+    selected_dir=$(eval "$list_cmd" | fzf \
+        --query="$1" \
+        --select-1 \
+        --exit-0 \
+        --preview "eza --tree --level 2 --icons=always --color=always {}" \
+        --preview-window="right:50%:rounded" \
+        --header "Jump to Project")
+
+    if [[ -n "$selected_dir" ]]; then
+        cd "$selected_dir" || return 1
+        echo -e "\033[1;32mJumped to:\033[0m $selected_dir"
+        echo "------------------------------------------"
+        eza -la --icons=always
+    fi
+}
