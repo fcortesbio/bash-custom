@@ -1,3 +1,45 @@
+wlc() {
+    # Usage: wlc [--headers] <command> [args...]
+    # Copies command output (stdout and stderr) to Wayland clipboard.
+    dep_check "wl-copy" || return 1
+    local header_mode=false
+    local cmd_str
+
+    # Parse flags
+    while [[ "$#" -gt 0 ]]; do
+        case "$1" in
+            -h|--headers)
+                header_mode=true
+                shift
+                ;;
+            --) 
+                shift
+                break
+                ;;
+            *) 
+                break
+                ;;
+        esac
+    done
+
+    if [[ "$#" -eq 0 ]]; then
+        echo "Usage: wlc [--headers] <command> [args...]" >&2
+        return 1
+    fi
+
+    cmd_str="$*"
+
+    {
+        if [[ "$header_mode" == true ]]; then
+            printf "# %s\n" "$cmd_str"
+            printf "# type: combined (stdout/stderr)\n"
+        fi
+
+        # Execute command with stderr redirected to stdout to capture everything
+        "$@" 2>&1
+    } | tee >(wl-copy)
+}
+
 bl() {
     # Usage: bl [--functions | --aliases] [--verbose]
     # Lists custom functions/aliases using an external awk parser.
