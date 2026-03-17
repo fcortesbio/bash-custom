@@ -1,14 +1,3 @@
-# --- CORE UTILITIES ---
-
-dep_check() {
-    # Usage: dep_check <command>
-    local cmd="$1"
-    if ! command -v "$cmd" &> /dev/null; then
-        echo "Error: $cmd is not installed" >&2
-        return 1
-    fi
-}
-
 # --- CLIPBOARD & DOCUMENTATION ---
 
 wlc() {

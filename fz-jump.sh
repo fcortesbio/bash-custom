@@ -3,7 +3,7 @@ if ! command -v dep_check &> /dev/null; then
     source "$(dirname "$BASH_SOURCE")/utils.sh"
 fi
 
-_fuzzy_jump_engine() {
+_fuzzy_jump() {
     local target_base="$1"
     local label="$2"
     local query="$3"
@@ -38,24 +38,4 @@ _fuzzy_jump_engine() {
         echo "------------------------------------------"
         eza -la --icons=always
     fi
-}
-
-#####################################################################
-# Add your jumpers here:
-#####################################################################
-
-pj() {
-    # Usage: pj [query]
-    _fuzzy_jump_engine "$HOME/Projects" "Project" "$1"
-}
-
-conf() {
-    # Usage: conf [query]
-    # Increased depth to 3 for nested configs (e.g., nvim/lua/user)
-    _fuzzy_jump_engine "$HOME/.config" "Config" "$1" 3
-}
-
-vlt() {
-    # Usage: vlt [query]
-    _fuzzy_jump_engine "$HOME/Vaults" "Vaults" "$1"
 }

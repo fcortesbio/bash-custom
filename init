@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+TARGET="$HOME/.bashrc"
+HOOK="[[ -f ~/Scripts/main.sh ]] && source ~/Scripts/main.sh"
+
+echo "Checking $TARGET for main.sh hook..."
+
+if grep -q "Scripts/main.sh" "$TARGET"; then
+    echo "Entry point already exists in $TARGET."
+else
+    echo "Adding hook to $TARGET..."
+    # Using printf to ensure clean newlines
+    printf "\n# Load Scripts Repository\n%s\n" "$HOOK" >> "$TARGET"
+    echo "Success. Please run: source ~/.bashrc"
+fi
