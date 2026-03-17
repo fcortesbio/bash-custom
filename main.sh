@@ -17,7 +17,7 @@ dep_check() {
 }
 
 # Critical dependencies
-if ! dep_check starship eza fzf git; then
+if ! dep_check starship eza fzf git rg fd; then
     echo "Shell initialization aborted." >&2
     return 1
 fi

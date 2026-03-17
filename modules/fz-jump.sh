@@ -1,41 +1,97 @@
-# Ensure dependency is available if jumper is sourced independently
-if ! command -v dep_check &> /dev/null; then
-    source "$(dirname "$BASH_SOURCE")/utils.sh"
-fi
+_fuzzy_select_dir() {
+    local base="$1"
+    local query="$2"
+    local max_depth="${3:-2}"
 
-_fuzzy_jump() {
-    local target_base="$1"
-    local label="$2"
-    local query="$3"
-    local max_depth="${4:-2}"
+    command -v fzf >/dev/null && command -v fd >/dev/null || return 1
+    [[ -d "$base" ]] || return 1
 
-    # Gatekeeping: Hard dependencies
-    dep_check "fzf" || return 1
-    dep_check "eza" || return 1
-    dep_check "fd"  || return 1
+    fd . "$base" \
+        --type d \
+        --mindepth 1 \
+        --max-depth "$max_depth" 2>/dev/null |
+    fzf \
+        --query="$query" \
+        --select-1 \
+        --exit-0
+}
 
-    if [[ ! -d "$target_base" ]]; then
-        echo "Error: Base directory '$target_base' not found." >&2
-        return 1
-    fi
+_fuzzy_select_dir_preview() {
+    local base="$1"
+    local query="$2"
+    local max_depth="${3:-2}"
 
-    # Since dep_check passed, we can define the command directly
-    local list_cmd="fd . '$target_base' --max-depth $max_depth --type d --mindepth 1"
+    command -v fzf >/dev/null && command -v fd >/dev/null && command -v eza >/dev/null || return 1
+    [[ -d "$base" ]] || return 1
 
-    local selected_dir
-    # We capture the output of fd separately to ensure we don't pipe an error into fzf
-    selected_dir=$(eval "$list_cmd" | fzf \
+    fd . "$base" \
+        --type d \
+        --mindepth 1 \
+        --max-depth "$max_depth" 2>/dev/null |
+    fzf \
         --query="$query" \
         --select-1 \
         --exit-0 \
-        --preview "eza --tree --level 2 --icons=always --color=always {}" \
-        --preview-window="right:50%:rounded" \
-        --header "Jump to $label")
+        --preview 'eza --tree --level 2 --icons=always --color=always {}' \
+        --preview-window="right:50%:rounded"
+}
 
-    if [[ -n "$selected_dir" && -d "$selected_dir" ]]; then
-        cd "$selected_dir" || return 1
-        echo -e "\033[1;32mJumped to:\033[0m $selected_dir"
-        echo "------------------------------------------"
-        eza -la --icons=always
+_jump_to() {
+    local dir="$1"
+    [[ -d "$dir" ]] || return 1
+
+    cd "$dir" || return 1
+
+    if [[ "$JUMP_VERBOSE" == true ]]; then
+        printf "\033[1;32mJumped to:\033[0m %s\n" "$dir"
+        eza -la --icons 2>/dev/null
     fi
+}
+
+jump() {
+    local base="$1"
+    local query="$2"
+    local depth="${3:-2}"
+
+    local dir
+    dir=$(_fuzzy_select_dir_preview "$base" "$query" "$depth") || return
+
+    _jump_to "$dir"
+}
+
+_fuzzy_search_dir() {
+    local base="$1"
+    local query="$2"
+
+    command -v rg >/dev/null && command -v fzf >/dev/null || return 1
+    [[ -d "$base" ]] || return 1
+
+    rg --files-with-matches --no-messages "$query" "$base" |
+    xargs -I {} dirname {} |
+    sort -u |
+    fzf --header "Search: $query"
+}
+
+jump_search() {
+    local base="$1"
+    local query="$2"
+
+    local dir
+    dir=$(_fuzzy_search_dir "$base" "$query") || return
+
+    _jump_to "$dir"
+}
+
+# open selected dir in nvim
+edit_dir() {
+    local dir
+    dir=$(_fuzzy_select_dir "$HOME/Projects") || return
+    nvim "$dir"
+}
+
+# copy path instead of cd
+copy_dir() {
+    local dir
+    dir=$(_fuzzy_select_dir "$HOME") || return
+    printf "%s" "$dir" | wl-copy
 }
