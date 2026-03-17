@@ -24,8 +24,8 @@ else
     echo ".bashrc is empty."
 fi
 
-if $NEEDS_BACKUP; then
-    cp "$TARGET" "$HOME/.bashrc.bak"
+if $NEEDS_BACKUP && [[ ! -f "$HOME/.bashrc.bak" ]]; then
+    cp "$TARGET" "$HOME/.bashrc.bak.$(date +%F-%H%M%S)"
     echo "Backup saved to ~/.bashrc.bak"
 fi
 
