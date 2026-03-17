@@ -1,15 +1,50 @@
 #!/usr/bin/env bash
 
 TARGET="$HOME/.bashrc"
-HOOK="[[ -f ~/Scripts/main.sh ]] && source ~/Scripts/main.sh"
+SKELETON="/etc/skel/.bashrc"
 
-echo "Checking $TARGET for main.sh hook..."
+HOOK='[[ $- != *i* ]] && return
+[[ -f ~/Scripts/main.sh ]] && source ~/Scripts/main.sh'
 
-if grep -q "Scripts/main.sh" "$TARGET"; then
-    echo "Entry point already exists in $TARGET."
+echo "Checking $TARGET..."
+
+# Ensure file exists
+touch "$TARGET"
+
+NEEDS_BACKUP=false
+
+if [[ -s "$TARGET" ]]; then
+    if [[ -f "$SKELETON" ]] && cmp -s "$TARGET" "$SKELETON"; then
+        echo ".bashrc matches Arch skeleton. No backup needed."
+    else
+        echo ".bashrc differs from skeleton. Creating backup."
+        NEEDS_BACKUP=true
+    fi
 else
-    echo "Adding hook to $TARGET..."
-    # Using printf to ensure clean newlines
-    printf "\n# Load Scripts Repository\n%s\n" "$HOOK" >> "$TARGET"
-    echo "Success. Please run: source ~/.bashrc"
+    echo ".bashrc is empty."
 fi
+
+if $NEEDS_BACKUP; then
+    cp "$TARGET" "$HOME/.bashrc.bak"
+    echo "Backup saved to ~/.bashrc.bak"
+fi
+
+echo "Rewriting $TARGET..."
+
+# Truncate file
+: > "$TARGET"
+
+# Write hook
+printf "%s\n" "$HOOK" >> "$TARGET"
+
+echo ".bashrc updated."
+
+read -rp "Reload shell now? [Y/N]: " answer
+case "$answer" in
+    [Yy])
+        exec "$SHELL"
+        ;;
+    *)
+        echo "Open a new shell or run: source ~/.bashrc"
+        ;;
+esac
