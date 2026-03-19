@@ -1,4 +1,3 @@
-# Jumpers
 cnf() { jump "$HOME/.config" "$1" 2; }
 pj()  { jump "$HOME/Projects" "$1"; }
 vlt() { jump "$HOME/Vaults" "$1"; }

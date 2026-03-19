@@ -1,3 +1,5 @@
+dep_check "fzf" "fd" "eza" "nvim" "wl-copy" "rg" || return 1
+
 _fuzzy_select_dir() {
     local base="$1"
     local query="$2"

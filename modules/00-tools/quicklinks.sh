@@ -1,3 +1,5 @@
+dep_check "bat" "fd" "fzf" || return 1
+
 quicklinks() {
     ## Borrowed logic from the ML4W suite (https://ml4w.com/)
     # --- Configuration ---
@@ -25,7 +27,7 @@ quicklinks() {
 
     # 2. UI Selection
     # Use local to prevent SELECTED_LINE from leaking to the global shell
-    SELECTED_LINE=$(cat "$CONFIG_FILE" | fzf \
+    SELECTED_LINE=$(bat "$CONFIG_FILE" | fzf \
         --style full \
         --height 40% --layout reverse --border \
         --prompt "🚀 Quick Access: " \

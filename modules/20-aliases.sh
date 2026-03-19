@@ -5,6 +5,7 @@ alias src="source ~/.bashrc" # quick source
 alias grep="rg" # grep wrapper
 alias find="fd" # find wrapper
 alias v=$EDITOR
+alias v.="$EDITOR ."
 alias wifi="nmtui"
 alias lock="hyprlock"
 alias fm="yazi"

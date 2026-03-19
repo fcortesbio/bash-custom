@@ -1,5 +1,3 @@
-# AUTOSTART
-
 # FastFetch
 if [[ $(tty) == *"pts"* ]]; then
     if [ ! -f $HOME/.config/ml4w/settings/hide-fastfetch ]; then
@@ -8,4 +6,4 @@ if [[ $(tty) == *"pts"* ]]; then
 fi
 
 # Startship
-eval "$(starship init bash)
+eval "$(starship init bash)"
