@@ -1,0 +1,22 @@
+#    _               _              
+#   | |__   __ _ ___| |__  _ __ ___ 
+#   | '_ \ / _` / __| '_ \| '__/ __|
+#  _| |_) | (_| \__ \ | | | | | (__ 
+# (_)_.__/ \__,_|___/_| |_|_|  \___|
+# 
+# ~/.bashrc
+# Minimal bootstrap for the Arch-Bash Framework
+
+# 1. Guard: Interactive shell check
+# Prevents sourcing for non-interactive shells (like sftp/scp)
+[[ $- != *i* ]] && return
+
+# 2. Framework Entry Point
+# Sourcing the main orchestrator from the Scripts repository
+FRAMEWORK_MAIN="$HOME/Scripts/main.sh"
+
+if [[ -f "$FRAMEWORK_MAIN" ]]; then
+    source "$FRAMEWORK_MAIN"
+else
+    echo "Warning: Framework entry point not found at $FRAMEWORK_MAIN" >&2
+fi

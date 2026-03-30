@@ -1,6 +1,6 @@
 # General
 alias ..="cd .."
-alias ff="fastfetch"
+alias ff="fastfetch --logo none"
 alias src="source ~/.bashrc" # quick source 
 alias grep="rg" # grep wrapper
 alias find="fd" # find wrapper

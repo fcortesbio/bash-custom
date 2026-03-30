@@ -33,8 +33,9 @@ sudo pacman -Syu && sudo pacman -S wl-clipboard git bc starship fastfetch eza fz
 # 2. Clone to standard location
 git clone https://github.com/kiskaadee/bash-custom ~/Scripts
 
-# 3. Initialize (Adds hook to ~/.bashrc)
-cd ~/Scripts && ./init
+# 3. Initialize (Add bootstrap to ~/.bashrc)
+cp ~/.bashrc ~/.bashrc_backup
+cp ./bashrc-example.txt ~/.bashrc
 ```
 
 ## 🔍 Key Workflows

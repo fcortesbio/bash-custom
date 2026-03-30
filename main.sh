@@ -41,7 +41,7 @@ REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 MODULES_DIR="$REPO_ROOT/modules"
 
 # Set to true/false (no quotes needed for the check below)
-DEBUG_LOAD=true 
+DEBUG_LOAD=false 
 
 # Ensure we use a predictable sort order for our numbered files
 export LC_ALL=C
